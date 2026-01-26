@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // Clé SSH spécifique pour Jenkins Snap
+        // Utilise la clé SSH de Jenkins Snap pour GitHub
         GIT_SSH_COMMAND = 'ssh -i /var/snap/jenkins/current/.ssh/id_ed25519 -o StrictHostKeyChecking=no'
     }
 
@@ -10,7 +10,7 @@ pipeline {
 
         stage('Clone repository') {
             steps {
-                echo 'Cloning repository...'
+                echo 'Cloning repository from GitHub...'
                 git branch: 'main', url: 'git@github.com:Francky0105/pipeline-project.git'
             }
         }
@@ -39,15 +39,15 @@ pipeline {
             steps {
                 echo 'Deploying with Docker container...'
                 sh '''
-                docker build -t cicd-project .
-                docker stop cicd-project || true
-                docker rm cicd-project || true
-                docker run -d --name cicd-project -p 8080:80 cicd-project
+                docker build -t pipeline-project .
+                docker stop pipeline-project || true
+                docker rm pipeline-project || true
+                docker run -d --name pipeline-project -p 8080:80 pipeline-project
                 '''
             }
         }
     }
-    
+
     post {
         success {
             echo 'Pipeline SUCCESS ✅'
@@ -57,4 +57,3 @@ pipeline {
         }
     }
 }
-
