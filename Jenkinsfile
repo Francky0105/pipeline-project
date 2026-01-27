@@ -1,48 +1,37 @@
 pipeline {
     agent any
 
-    environment {
-        // Utilise la clé SSH de Jenkins Snap pour GitHub
-        GIT_SSH_COMMAND = 'ssh -i /var/snap/jenkins/current/.ssh/id_ed25519 -o StrictHostKeyChecking=no'
-    }
-
     stages {
 
-        stage('Clone repository') {
+        stage('Checkout Code') {
             steps {
-                echo 'Cloning repository from GitHub...'
-                git branch: 'main', url: 'https://github.com/Francky0105/pipeline-project.git'
+                git branch: 'main',
+                    url: 'https://github.com/Francky0105/pipeline-project.git'
             }
         }
 
-        stage('Build') {
+        stage('Build Docker Image') {
             steps {
-                echo 'Build step - OK'
+                sh 'docker build -t pipeline-project .'
             }
         }
 
-        stage('Test') {
+        stage('Stop old container') {
             steps {
-                echo 'Running automated tests...'
-                sh 'pytest --maxfail=1 --disable-warnings -q || true'
-            }
-        }
-
-        stage('Deploy to Apache') {
-            steps {
-                echo 'Deploying to Apache...'
-                sh 'sudo cp index.html /var/www/html/index.html'
-            }
-        }
-
-        stage('Deploy with Docker (optional)') {
-            steps {
-                echo 'Deploying with Docker container...'
                 sh '''
-                docker build -t pipeline-project .
-                docker stop pipeline-project || true
-                docker rm pipeline-project || true
-                docker run -d --name pipeline-project -p 8080:80 pipeline-project
+                docker stop pipeline-container || true
+                docker rm pipeline-container || true
+                '''
+            }
+        }
+
+        stage('Deploy with Docker') {
+            steps {
+                sh '''
+                docker run -d \
+                --name pipeline-container \
+                -p 8081:80 \
+                pipeline-project
                 '''
             }
         }
@@ -50,10 +39,11 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline SUCCESS ✅'
+            echo 'Pipeline SUCCESS ✅ Docker deployed'
         }
         failure {
             echo 'Pipeline FAILED ❌'
         }
     }
 }
+
