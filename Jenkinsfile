@@ -27,11 +27,15 @@ pipeline {
         =============================== */
         stage('Security - Code Check') {
             steps {
-                echo "Basic security checks on source code..."
                 sh '''
-                  if grep -R "password" .; then
+                echo "Analyse de sécurité du code..."
+                  if grep -R "password" .\
+                      --exclude=Jenkinsfile \
+                      --exclude-dir=.git ; then
                     echo "❌ Mot de passe trouvé dans le code"
                     exit 1
+                  else
+                    echo "Aucun secret détecté"
                   fi
                 '''
             }
