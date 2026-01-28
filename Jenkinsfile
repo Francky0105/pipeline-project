@@ -1,49 +1,109 @@
 pipeline {
     agent any
 
+    environment {
+        IMAGE_NAME = "pipeline-project"
+        CONTAINER_NAME = "pipeline-container"
+        APP_PORT = "8081"
+    }
+
+    triggers {
+        githubPush()
+    }
+
     stages {
 
+        /* ===============================
+           1️⃣ CLONE SÉCURISÉ
+        =============================== */
         stage('Checkout Code') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/Francky0105/pipeline-project.git'
+                checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        /* ===============================
+           2️⃣ CONTRÔLE D’INTÉGRITÉ DU CODE
+        =============================== */
+        stage('Security - Code Check') {
             steps {
-                sh 'docker build -t pipeline-project .'
-            }
-        }
-
-        stage('Stop old container') {
-            steps {
-                 sh '''
-                 docker ps -q --filter "publish=8081" | xargs -r docker stop
-                 docker ps -aq --filter "publish=8081" | xargs -r docker rm
-                 '''
-           }
-        }
-
-        stage('Deploy with Docker') {
-            steps {
+                echo "Basic security checks on source code..."
                 sh '''
-                docker run -d \
-                --name pipeline-container \
-                -p 8081:80 \
-                pipeline-project
+                  if grep -R "password" .; then
+                    echo "❌ Mot de passe trouvé dans le code"
+                    exit 1
+                  fi
                 '''
             }
         }
-    }
 
+        /* ===============================
+           3️⃣ BUILD DOCKER SÉCURISÉ
+        =============================== */
+        stage('Build Docker Image') {
+            steps {
+                sh 'docker build -t $IMAGE_NAME .'
+            }
+        }
+
+        /* ===============================
+           4️⃣ SCAN DE SÉCURITÉ DOCKER
+        =============================== */
+        stage('Security - Docker Image Scan') {
+            steps {
+                echo "Docker image security scan..."
+                sh '''
+                  if command -v trivy >/dev/null 2>&1; then
+                    trivy image --severity HIGH,CRITICAL $IMAGE_NAME
+                  else
+                    echo "⚠️ Trivy non installé, scan ignoré"
+                  fi
+                '''
+            }
+        }
+
+        /* ===============================
+           5️⃣ ARRÊT SÉCURISÉ DES ANCIENS CONTENEURS
+        =============================== */
+
+        stage('Stop old container') {
+            steps {
+                sh '''
+                   docker stop pipeline-container || true
+                   docker rm pipeline-container || true
+                '''
+            }
+        }
+
+        /* ===============================
+           6️⃣ DÉPLOIEMENT CONTRÔLÉ
+        =============================== */
+
+        stage('Deploy with Docker') {
+             when {
+                 branch 'main'
+             }
+            steps {
+                 sh '''
+                   docker run -d \
+                    --name pipeline-container \
+                    --read-only \
+                    --restart unless-stopped \
+                     -p 8081:80 \
+                    pipeline-project
+                 '''
+            }
+        }
+
+      
     post {
         success {
-            echo 'Pipeline SUCCESS ✅ Docker deployed'
+            echo "✅ Pipeline sécurisé exécuté avec succès"
         }
         failure {
-            echo 'Pipeline FAILED ❌'
+            echo "❌ Pipeline bloqué pour raisons de sécurité"
         }
     }
 }
+
 
