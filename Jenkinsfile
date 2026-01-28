@@ -18,11 +18,11 @@ pipeline {
 
         stage('Stop old container') {
             steps {
-                sh '''
-                docker stop pipeline-container || true
-                docker rm pipeline-container || true
-                '''
-            }
+                 sh '''
+                 docker ps -q --filter "publish=8081" | xargs -r docker stop
+                 docker ps -aq --filter "publish=8081" | xargs -r docker rm
+                 '''
+           }
         }
 
         stage('Deploy with Docker') {
