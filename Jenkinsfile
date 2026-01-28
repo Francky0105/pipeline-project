@@ -29,8 +29,7 @@ pipeline {
             steps {
                 sh '''
                 echo "Analyse de sécurité du code..."
-                  if grep -R "password" .\
-                      --exclude=Jenkinsfile \
+                  if grep -R "password" . --exclude=Jenkinsfile || true \
                       --exclude-dir=.git ; then
                     echo "❌ Mot de passe trouvé dans le code"
                     exit 1
